@@ -4,6 +4,7 @@ from pathlib import Path
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
+from app.api.routes import api_bp
 
 
 def create_app() -> Flask:
@@ -13,6 +14,8 @@ def create_app() -> Flask:
 
     app = Flask(__name__)
     CORS(app)
+    app.register_blueprint(api_bp, url_prefix="/api")
+
 
     @app.get("/health")
     def health():
