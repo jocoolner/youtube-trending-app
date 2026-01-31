@@ -1,0 +1,18 @@
+﻿# python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# conda / environment
+*.conda
+
+# data (don’t commit datasets)
+data/raw/
+data/processed/
+
+# notebooks
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
