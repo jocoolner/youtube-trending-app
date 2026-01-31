@@ -1,22 +1,27 @@
 ﻿import os
+from pathlib import Path
+
 from flask import Flask, jsonify
 from dotenv import load_dotenv
 from flask_cors import CORS
 
+
 def create_app() -> Flask:
-    # Load backend/.env into environment variables
-    load_dotenv()
+    # Load backend/.env reliably regardless of where you run the command from
+    env_path = Path(__file__).resolve().parents[1] / ".env"  # backend/.env
+    load_dotenv(env_path)
 
     app = Flask(__name__)
     CORS(app)
 
-    @app.get('/health')
+    @app.get("/health")
     def health():
-        return jsonify({'status': 'ok'})
+        return jsonify({"status": "ok"})
 
     return app
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     app = create_app()
-    port = int(os.getenv('PORT', '5000'))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.getenv("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
