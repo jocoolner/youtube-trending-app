@@ -16,7 +16,6 @@ def create_app() -> Flask:
     CORS(app)
     app.register_blueprint(api_bp, url_prefix="/api")
 
-
     @app.get("/health")
     def health():
         return jsonify({"status": "ok"})
