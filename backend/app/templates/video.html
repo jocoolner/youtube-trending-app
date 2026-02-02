@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Video — {{ video_id }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Video Detail</h1>
+      <p class="sub">Video ID: <code>{{ video_id }}</code></p>
+    </div>
+    <div class="controls">
+      <a class="btn" href="/">← Back</a>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card full">
+      <h2>Coming next</h2>
+      <p>
+        Next we’ll add <code>/api/video/&lt;video_id&gt;</code> and render the trend history here.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

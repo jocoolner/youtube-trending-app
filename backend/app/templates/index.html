@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube Trending (US) Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>YouTube Trending (US)</h1>
+      <p class="sub">Pick a date to explore daily trending + top-20 leaderboards.</p>
+    </div>
+
+    <div class="controls">
+      <label for="dateSelect">Date</label>
+      <select id="dateSelect"></select>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Top 20 — Views</h2>
+      <div id="topViews" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Top 20 — Likes</h2>
+      <div id="topLikes" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Top 20 — Stickiness (days trended in US)</h2>
+      <div id="topStickiness" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Top 20 — Global Reach (countries)</h2>
+      <div id="topReach" class="table-wrap"></div>
+    </section>
+
+    <section class="card full">
+      <h2>US Trending — Top 200 (by views)</h2>
+      <div id="trending200" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="status"></span>
+  </footer>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

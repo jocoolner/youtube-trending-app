@@ -1,9 +1,10 @@
 ﻿import os
 from pathlib import Path
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from dotenv import load_dotenv
 from flask_cors import CORS
+
 from app.api.routes import api_bp
 
 
@@ -12,10 +13,38 @@ def create_app() -> Flask:
     env_path = Path(__file__).resolve().parents[1] / ".env"  # backend/.env
     load_dotenv(env_path)
 
-    app = Flask(__name__)
+    # Explicit template/static folders (more reliable when package layout grows)
+    template_dir = Path(__file__).resolve().parent / "templates"  # backend/app/templates
+    static_dir = Path(__file__).resolve().parent / "static"       # backend/app/static
+
+    app = Flask(
+        __name__,
+        template_folder=str(template_dir),
+        static_folder=str(static_dir),
+        static_url_path="/static",
+    )
+
+    # Allow browser front-end to call API endpoints (fine for local dev)
     CORS(app)
+
+    # Register API routes under /api
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    # -------------------------
+    # Pages (Website UI)
+    # -------------------------
+    @app.get("/")
+    def index():
+        return render_template("index.html")
+
+    @app.get("/video/<video_id>")
+    def video_page(video_id: str):
+        # We'll improve this page later with real API-driven detail
+        return render_template("video.html", video_id=video_id)
+
+    # -------------------------
+    # Health check
+    # -------------------------
     @app.get("/health")
     def health():
         return jsonify({"status": "ok"})
