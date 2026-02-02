@@ -10,7 +10,7 @@
   <header class="header">
     <div>
       <h1>Video Detail</h1>
-      <p class="sub">Video ID: <code>{{ video_id }}</code></p>
+      <p class="sub">Video ID: <code id="videoId">{{ video_id }}</code></p>
     </div>
     <div class="controls">
       <a class="btn" href="/">← Back</a>
@@ -19,11 +19,28 @@
 
   <main class="grid">
     <section class="card full">
-      <h2>Coming next</h2>
-      <p>
-        Next we’ll add <code>/api/video/&lt;video_id&gt;</code> and render the trend history here.
-      </p>
+      <div id="videoMeta">Loading video...</div>
+    </section>
+
+    <section class="card">
+      <h2>US Trend History</h2>
+      <div id="videoHistory" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Country Spread (Top 20)</h2>
+      <div id="videoSpread" class="table-wrap"></div>
     </section>
   </main>
+
+  <footer class="footer">
+    <span id="status"></span>
+  </footer>
+
+  <script>
+    // Pass video_id to JS safely
+    window.__VIDEO_ID__ = "{{ video_id }}";
+  </script>
+  <script src="{{ url_for('static', filename='video.js') }}"></script>
 </body>
 </html>
