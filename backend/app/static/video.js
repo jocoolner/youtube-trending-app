@@ -24,20 +24,35 @@ async function fetchJson(url) {
 }
 
 function renderMeta(v) {
-  // v is result.video from API
+  const channelHref = `/channel/${encodeURIComponent(v.channel_id)}`;
+  const ytVideoHref = `https://www.youtube.com/watch?v=${encodeURIComponent(v.video_id)}`;
+  const ytChannelHref = `https://www.youtube.com/channel/${encodeURIComponent(v.channel_id)}`;
+
   metaEl.innerHTML = `
     <div style="display:flex; gap:14px; align-items:flex-start;">
       <img class="thumb" style="width:160px;height:90px;border-radius:12px;"
            src="${v.video_default_thumbnail || ""}" alt="">
       <div style="flex:1;">
         <div class="title" style="font-size:18px;">${v.video_title || "(no title)"}</div>
-        <div class="meta" style="margin-top:6px;">Channel: <b>${v.channel_title || ""}</b></div>
-        <div class="meta">Category ID: ${v.video_category_id ?? ""} · Duration: ${v.video_duration ?? ""} · Definition: ${v.video_definition ?? ""}</div>
+
+        <div class="meta" style="margin-top:6px;">
+          Channel: <b>${v.channel_title || ""}</b>
+        </div>
+
+        <div class="meta">
+          Category ID: ${v.video_category_id ?? ""} · Duration: ${v.video_duration ?? ""} · Definition: ${v.video_definition ?? ""}
+        </div>
 
         <div style="margin-top:10px; display:flex; gap:14px; flex-wrap:wrap;">
           <div class="small">Global reach: <b>${fmtNum(v.countries_count)}</b> countries</div>
           <div class="small">US stickiness: <b>${fmtNum(v.days_trended_us)}</b> days</div>
           <div class="small">US first/last: <b>${v.first_trending_us || ""}</b> → <b>${v.last_trending_us || ""}</b></div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="btn" href="${channelHref}">More from this channel</a>
+          <a class="btn" href="${ytVideoHref}" target="_blank" rel="noopener">Open video on YouTube</a>
+          <a class="btn" href="${ytChannelHref}" target="_blank" rel="noopener">Open channel on YouTube</a>
         </div>
       </div>
     </div>

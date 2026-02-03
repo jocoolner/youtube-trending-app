@@ -421,3 +421,79 @@ def us_channels_alltime():
 
     return jsonify({"country": "United States", "count": len(data), "results": data})
 
+@api_bp.get("/us/channel/<channel_id>")
+def us_channel_detail(channel_id: str):
+    limit_raw = request.args.get("limit", "200")
+    try:
+        limit = max(1, min(int(limit_raw), 500))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        # Channel summary
+        meta_cur = con.execute("""
+            SELECT
+              c.channel_id,
+              c.channel_title,
+              c.channel_custom_url,
+              c.channel_country,
+              a.distinct_videos_alltime,
+              a.days_active,
+              a.appearances_alltime,
+              CAST(a.first_date AS VARCHAR) AS first_date,
+              CAST(a.last_date AS VARCHAR) AS last_date,
+              a.sum_views_alltime,
+              a.sum_likes_alltime
+            FROM channel_dim c
+            LEFT JOIN channel_us_alltime a USING (channel_id)
+            WHERE c.channel_id = ?
+        """, [channel_id])
+
+        meta = meta_cur.fetchone()
+        if not meta:
+            return jsonify({"error": "channel_id not found"}), 404
+
+        meta_cols = [c[0] for c in meta_cur.description]
+        channel = dict(zip(meta_cols, meta))
+
+        # Unique videos (US) for this channel
+        cur = con.execute("""
+            WITH vids AS (
+              SELECT
+                t.video_id,
+                COUNT(DISTINCT t.video_trending_date) AS days_trended_us,
+                MIN(t.video_trending_date) AS first_trending_us,
+                MAX(t.video_trending_date) AS last_trending_us,
+                MAX(t.video_view_count) AS max_views,
+                MAX(t.video_like_count) AS max_likes,
+                MAX(t.video_comment_count) AS max_comments
+              FROM trending t
+              WHERE t.video_trending_country='United States'
+                AND t.channel_id = ?
+              GROUP BY t.video_id
+            )
+            SELECT
+              v.video_id,
+              d.video_title,
+              d.video_default_thumbnail,
+              v.days_trended_us,
+              CAST(v.first_trending_us AS VARCHAR) AS first_trending_us,
+              CAST(v.last_trending_us AS VARCHAR) AS last_trending_us,
+              v.max_views AS video_view_count,
+              v.max_likes AS video_like_count,
+              v.max_comments AS video_comment_count,
+              r.countries_count
+            FROM vids v
+            JOIN video_dim d USING (video_id)
+            LEFT JOIN video_reach r USING (video_id)
+            ORDER BY v.days_trended_us DESC NULLS LAST,
+                     v.max_views DESC NULLS LAST
+            LIMIT ?
+        """, [channel_id, limit])
+
+        cols = [c[0] for c in cur.description]
+        videos = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    return jsonify({"channel": channel, "count": len(videos), "videos": videos})
+
+
