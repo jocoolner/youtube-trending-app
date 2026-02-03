@@ -12,8 +12,9 @@
       <h1>Channel Leaderboard (US)</h1>
       <p class="sub">Daily: channels with the most distinct trending videos that day. All-time: most distinct trending videos in US so far.</p>
     </div>
+
     <div class="controls">
-      <a class="btn" href="/">← Back</a>
+      <a class="btn" href="/">Home</a>
       <label for="dateSelect">Date</label>
       <select id="dateSelect"></select>
       <button id="refreshBtn">Refresh</button>
@@ -36,6 +37,7 @@
     <span id="status"></span>
   </footer>
 
+  <!-- IMPORTANT: leaderboard page uses channels.js (plural) -->
   <script src="{{ url_for('static', filename='channels.js') }}"></script>
 </body>
 </html>

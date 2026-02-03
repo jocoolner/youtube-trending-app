@@ -52,6 +52,11 @@ def create_app() -> Flask:
     @app.get("/channels")
     def channels_page():
         return render_template("channels.html")
+    
+    @app.get("/channel/<channel_id>")
+    def channel_page(channel_id: str):
+        return render_template("channel.html", channel_id=channel_id)
+
 
 
     return app
