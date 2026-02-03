@@ -9,7 +9,9 @@ def main():
         con.execute("PRAGMA threads=4;")
         con.execute("PRAGMA enable_progress_bar;")
 
-        # 1) Video dimension (stable metadata per video_id)
+        # -------------------------
+        # Video analytics (existing)
+        # -------------------------
         con.execute("DROP TABLE IF EXISTS video_dim;")
         con.execute("""
             CREATE TABLE video_dim AS
@@ -26,7 +28,6 @@ def main():
             GROUP BY video_id;
         """)
 
-        # 2) Global reach per video
         con.execute("DROP TABLE IF EXISTS video_reach;")
         con.execute("""
             CREATE TABLE video_reach AS
@@ -37,7 +38,6 @@ def main():
             GROUP BY video_id;
         """)
 
-        # 3) US stickiness per video
         con.execute("DROP TABLE IF EXISTS video_us_stickiness;")
         con.execute("""
             CREATE TABLE video_us_stickiness AS
@@ -51,7 +51,6 @@ def main():
             GROUP BY video_id;
         """)
 
-        # 4) Helpful view: available US dates
         con.execute("""
             CREATE OR REPLACE VIEW v_us_dates AS
             SELECT DISTINCT video_trending_date
@@ -60,7 +59,58 @@ def main():
             ORDER BY video_trending_date DESC;
         """)
 
-        print("✅ Analytics tables created: video_dim, video_reach, video_us_stickiness + view v_us_dates")
+        # -------------------------
+        # NEW: Channel analytics
+        # -------------------------
+        con.execute("DROP TABLE IF EXISTS channel_dim;")
+        con.execute("""
+            CREATE TABLE channel_dim AS
+            SELECT
+              channel_id,
+              ANY_VALUE(channel_title) AS channel_title,
+              ANY_VALUE(channel_custom_url) AS channel_custom_url,
+              ANY_VALUE(channel_country) AS channel_country
+            FROM trending
+            GROUP BY channel_id;
+        """)
+
+        con.execute("DROP TABLE IF EXISTS channel_us_daily;")
+        con.execute("""
+            CREATE TABLE channel_us_daily AS
+            SELECT
+              video_trending_date AS date,
+              channel_id,
+              COUNT(DISTINCT video_id) AS distinct_videos,
+              COUNT(*) AS appearances,
+              SUM(video_view_count) AS sum_views,
+              SUM(video_like_count) AS sum_likes,
+              SUM(video_comment_count) AS sum_comments
+            FROM trending
+            WHERE video_trending_country = 'United States'
+            GROUP BY 1, 2;
+        """)
+
+        con.execute("DROP TABLE IF EXISTS channel_us_alltime;")
+        con.execute("""
+            CREATE TABLE channel_us_alltime AS
+            SELECT
+              channel_id,
+              COUNT(DISTINCT video_id) AS distinct_videos_alltime,
+              COUNT(DISTINCT video_trending_date) AS days_active,
+              COUNT(*) AS appearances_alltime,
+              MIN(video_trending_date) AS first_date,
+              MAX(video_trending_date) AS last_date,
+              SUM(video_view_count) AS sum_views_alltime,
+              SUM(video_like_count) AS sum_likes_alltime
+            FROM trending
+            WHERE video_trending_country = 'United States'
+            GROUP BY 1;
+        """)
+
+        print("✅ Analytics tables created:")
+        print("- video_dim, video_reach, video_us_stickiness")
+        print("- channel_dim, channel_us_daily, channel_us_alltime")
+        print("- view v_us_dates")
 
     finally:
         con.close()

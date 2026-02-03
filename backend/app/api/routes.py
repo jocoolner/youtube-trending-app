@@ -346,3 +346,78 @@ def video_detail(video_id: str):
         spread = _rows_to_dicts(spread_cur)
 
     return jsonify({"video": meta_dict, "country": country, "history": history, "country_spread_top20": spread})
+
+@api_bp.get("/us/channels/daily")
+def us_channels_daily():
+    date = request.args.get("date")
+    limit_raw = request.args.get("limit", "20")
+    try:
+        limit = max(1, min(int(limit_raw), 100))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        # default date = latest
+        if not date:
+            date = con.execute("""
+                SELECT CAST(max(video_trending_date) AS VARCHAR)
+                FROM trending
+                WHERE video_trending_country='United States'
+            """).fetchone()[0]
+
+        cur = con.execute("""
+            SELECT
+              d.channel_id,
+              c.channel_title,
+              d.distinct_videos,
+              d.appearances,
+              d.sum_views,
+              d.sum_likes,
+              d.sum_comments,
+              CAST(d.date AS VARCHAR) AS date
+            FROM channel_us_daily d
+            LEFT JOIN channel_dim c USING (channel_id)
+            WHERE d.date = CAST(? AS DATE)
+            ORDER BY d.distinct_videos DESC NULLS LAST,
+                     d.sum_views DESC NULLS LAST
+            LIMIT ?
+        """, [date, limit])
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({"country": "United States", "date": date, "count": len(data), "results": data})
+
+
+@api_bp.get("/us/channels/alltime")
+def us_channels_alltime():
+    limit_raw = request.args.get("limit", "20")
+    try:
+        limit = max(1, min(int(limit_raw), 100))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        cur = con.execute("""
+            SELECT
+              a.channel_id,
+              c.channel_title,
+              a.distinct_videos_alltime,
+              a.days_active,
+              a.appearances_alltime,
+              a.sum_views_alltime,
+              a.sum_likes_alltime,
+              CAST(a.first_date AS VARCHAR) AS first_date,
+              CAST(a.last_date AS VARCHAR) AS last_date
+            FROM channel_us_alltime a
+            LEFT JOIN channel_dim c USING (channel_id)
+            ORDER BY a.distinct_videos_alltime DESC NULLS LAST,
+                     a.days_active DESC NULLS LAST
+            LIMIT ?
+        """, [limit])
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({"country": "United States", "count": len(data), "results": data})
+

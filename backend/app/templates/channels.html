@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Channel Leaderboard (US)</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Channel Leaderboard (US)</h1>
+      <p class="sub">Daily: channels with the most distinct trending videos that day. All-time: most distinct trending videos in US so far.</p>
+    </div>
+    <div class="controls">
+      <a class="btn" href="/">← Back</a>
+      <label for="dateSelect">Date</label>
+      <select id="dateSelect"></select>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Daily — Top Channels (by distinct videos)</h2>
+      <div id="dailyTable" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>All-time — Top Channels (by distinct videos)</h2>
+      <div id="alltimeTable" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="status"></span>
+  </footer>
+
+  <script src="{{ url_for('static', filename='channels.js') }}"></script>
+</body>
+</html>

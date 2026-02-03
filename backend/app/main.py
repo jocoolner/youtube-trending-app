@@ -48,6 +48,11 @@ def create_app() -> Flask:
     @app.get("/health")
     def health():
         return jsonify({"status": "ok"})
+    
+    @app.get("/channels")
+    def channels_page():
+        return render_template("channels.html")
+
 
     return app
 
