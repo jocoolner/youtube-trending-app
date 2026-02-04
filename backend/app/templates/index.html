@@ -22,6 +22,37 @@
   </header>
 
   <main class="grid">
+
+    <!-- 🔎 Search (US) -->
+    <section class="card full">
+      <h2>Search (US)</h2>
+
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Search video title or channel title..."
+          style="min-width:280px;"
+        />
+
+        <select id="searchType">
+          <option value="videos">Video title</option>
+          <option value="channels">Channel title</option>
+        </select>
+
+        <select id="searchScope">
+          <option value="day">This day</option>
+          <option value="all">All time (US)</option>
+        </select>
+
+        <button id="searchBtn">Search</button>
+      </div>
+
+      <div id="searchStatus" class="small" style="margin-top:10px;"></div>
+      <div id="searchResults" class="table-wrap" style="margin-top:10px;"></div>
+    </section>
+
+    <!-- Existing dashboard cards -->
     <section class="card">
       <h2>Top 20 — Views</h2>
       <div id="topViews" class="table-wrap"></div>

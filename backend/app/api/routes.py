@@ -496,4 +496,165 @@ def us_channel_detail(channel_id: str):
 
     return jsonify({"channel": channel, "count": len(videos), "videos": videos})
 
+# --- US Search: videos + channels ---
+@api_bp.get("/us/search/videos")
+def us_search_videos():
+    qtext = (request.args.get("q") or "").strip()
+    if len(qtext) < 2:
+        return jsonify({"error": "q must be at least 2 characters"}), 400
+
+    scope = (request.args.get("scope") or "day").lower()  # day | all
+    date = request.args.get("date")
+    limit = request.args.get("limit", "20")
+
+    try:
+        limit = max(1, min(int(limit), 50))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        if scope == "day":
+            date = _resolve_us_date(con, date)
+            cur = con.execute(
+                """
+                SELECT
+                  t.video_id,
+                  d.video_title,
+                  d.channel_id,
+                  d.channel_title,
+                  d.video_default_thumbnail,
+                  t.video_view_count,
+                  t.video_like_count,
+                  t.video_comment_count,
+                  CAST(t.video_trending_date AS VARCHAR) AS video_trending_date
+                FROM trending t
+                JOIN video_dim d USING (video_id)
+                WHERE t.video_trending_country = 'United States'
+                  AND t.video_trending_date = CAST(? AS DATE)
+                  AND d.video_title ILIKE '%' || ? || '%'
+                ORDER BY t.video_view_count DESC NULLS LAST
+                LIMIT ?
+                """,
+                [date, qtext, limit],
+            )
+        elif scope == "all":
+            cur = con.execute(
+                """
+                SELECT
+                  d.video_id,
+                  d.video_title,
+                  d.channel_id,
+                  d.channel_title,
+                  d.video_default_thumbnail,
+                  s.days_trended_us,
+                  CAST(s.first_trending_us AS VARCHAR) AS first_trending_us,
+                  CAST(s.last_trending_us AS VARCHAR) AS last_trending_us,
+                  r.countries_count
+                FROM video_dim d
+                JOIN video_us_stickiness s USING (video_id)
+                LEFT JOIN video_reach r USING (video_id)
+                WHERE d.video_title ILIKE '%' || ? || '%'
+                ORDER BY s.days_trended_us DESC NULLS LAST,
+                         s.last_trending_us DESC NULLS LAST
+                LIMIT ?
+                """,
+                [qtext, limit],
+            )
+            date = None
+        else:
+            return jsonify({"error": "scope must be day or all"}), 400
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({
+        "q": qtext,
+        "scope": scope,
+        "date": date,
+        "limit": limit,
+        "count": len(data),
+        "results": data
+    })
+
+
+@api_bp.get("/us/search/channels")
+def us_search_channels():
+    qtext = (request.args.get("q") or "").strip()
+    if len(qtext) < 2:
+        return jsonify({"error": "q must be at least 2 characters"}), 400
+
+    scope = (request.args.get("scope") or "day").lower()  # day | all
+    date = request.args.get("date")
+    limit = request.args.get("limit", "20")
+
+    try:
+        limit = max(1, min(int(limit), 50))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        if scope == "day":
+            date = _resolve_us_date(con, date)
+            cur = con.execute(
+                """
+                SELECT
+                  d.channel_id,
+                  max(d.channel_title) AS channel_title,
+                  count(DISTINCT t.video_id) AS distinct_videos,
+                  sum(t.video_view_count) AS sum_views,
+                  sum(t.video_like_count) AS sum_likes,
+                  sum(t.video_comment_count) AS sum_comments
+                FROM trending t
+                JOIN video_dim d USING (video_id)
+                WHERE t.video_trending_country = 'United States'
+                  AND t.video_trending_date = CAST(? AS DATE)
+                  AND (
+                    d.channel_title ILIKE '%' || ? || '%'
+                    OR d.channel_id ILIKE '%' || ? || '%'
+                  )
+                GROUP BY 1
+                ORDER BY distinct_videos DESC, sum_views DESC
+                LIMIT ?
+                """,
+                [date, qtext, qtext, limit],
+            )
+        elif scope == "all":
+            cur = con.execute(
+                """
+                SELECT
+                  d.channel_id,
+                  max(d.channel_title) AS channel_title,
+                  count(*) AS distinct_videos_alltime,
+                  sum(s.days_trended_us) AS total_days_trended_us,
+                  CAST(min(s.first_trending_us) AS VARCHAR) AS first_trending_us,
+                  CAST(max(s.last_trending_us) AS VARCHAR) AS last_trending_us
+                FROM video_dim d
+                JOIN video_us_stickiness s USING (video_id)
+                WHERE (
+                  d.channel_title ILIKE '%' || ? || '%'
+                  OR d.channel_id ILIKE '%' || ? || '%'
+                )
+                GROUP BY 1
+                ORDER BY distinct_videos_alltime DESC, total_days_trended_us DESC
+                LIMIT ?
+                """,
+                [qtext, qtext, limit],
+            )
+            date = None
+        else:
+            return jsonify({"error": "scope must be day or all"}), 400
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({
+        "q": qtext,
+        "scope": scope,
+        "date": date,
+        "limit": limit,
+        "count": len(data),
+        "results": data
+    })
+
+
 
