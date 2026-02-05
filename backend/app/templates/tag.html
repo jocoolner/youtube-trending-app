@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube Trending (US) — Tag</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Tag: <span class="mono">{{ tag }}</span></h1>
+      <p class="sub">Browse videos in a month that contain this tag.</p>
+    </div>
+
+    <div class="controls">
+      <a class="btn" href="/tags">Back to Tags</a>
+      <a class="btn" href="/">Dashboard</a>
+      <a class="btn" href="/channels">Channels</a>
+
+      <label for="monthSelect">Month</label>
+      <select id="monthSelect"></select>
+
+      <label for="metricSelect">Sort</label>
+      <select id="metricSelect">
+        <option value="views">Views</option>
+        <option value="likes">Likes</option>
+      </select>
+
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card full">
+      <h2>Top Videos for this Tag</h2>
+      <div id="videosTable" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="status"></span>
+  </footer>
+
+  <script>
+    window.TAG = {{ tag|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='tag.js') }}"></script>
+</body>
+</html>

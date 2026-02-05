@@ -13,50 +13,38 @@ def create_app() -> Flask:
     env_path = Path(__file__).resolve().parents[1] / ".env"  # backend/.env
     load_dotenv(env_path)
 
-    # Explicit template/static folders (more reliable when package layout grows)
-    template_dir = Path(__file__).resolve().parent / "templates"  # backend/app/templates
-    static_dir = Path(__file__).resolve().parent / "static"       # backend/app/static
-
-    app = Flask(
-        __name__,
-        template_folder=str(template_dir),
-        static_folder=str(static_dir),
-        static_url_path="/static",
-    )
-
-    # Allow browser front-end to call API endpoints (fine for local dev)
+    app = Flask(__name__)
     CORS(app)
-
-    # Register API routes under /api
     app.register_blueprint(api_bp, url_prefix="/api")
 
-    # -------------------------
-    # Pages (Website UI)
-    # -------------------------
+    @app.get("/health")
+    def health():
+        return jsonify({"status": "ok"})
+
+    # --- Pages ---
     @app.get("/")
-    def index():
+    def index_page():
         return render_template("index.html")
 
     @app.get("/video/<video_id>")
     def video_page(video_id: str):
-        # We'll improve this page later with real API-driven detail
         return render_template("video.html", video_id=video_id)
 
-    # -------------------------
-    # Health check
-    # -------------------------
-    @app.get("/health")
-    def health():
-        return jsonify({"status": "ok"})
-    
     @app.get("/channels")
     def channels_page():
         return render_template("channels.html")
-    
+
     @app.get("/channel/<channel_id>")
     def channel_page(channel_id: str):
         return render_template("channel.html", channel_id=channel_id)
 
+    @app.get("/tags")
+    def tags_page():
+        return render_template("tags.html")
+    
+    @app.get("/tag/<path:tag>")
+    def tag_page(tag: str):
+        return render_template("tag.html", tag=tag)
 
 
     return app

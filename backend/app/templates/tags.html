@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>YouTube Trending (US) — Tags</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header class="header">
+    <div>
+      <h1>Tags (US)</h1>
+      <p class="sub">Explore top tags and what’s rising month-over-month.</p>
+    </div>
+
+    <div class="controls">
+      <a class="btn" href="/">Dashboard</a>
+      <a class="btn" href="/channels">Channels</a>
+
+      <label for="monthSelect">Month</label>
+      <select id="monthSelect"></select>
+      <button id="refreshBtn">Refresh</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="card">
+      <h2>Top Tags (by distinct videos)</h2>
+      <div id="topTags" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <h2>Rising Tags (month-over-month)</h2>
+      <div id="risingTags" class="table-wrap"></div>
+      <div class="small" style="padding: 8px 10px;">
+        Rising = biggest increase in <b>video share</b> vs previous month.
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span id="status"></span>
+  </footer>
+
+  <script src="{{ url_for('static', filename='tags.js') }}"></script>
+</body>
+</html>

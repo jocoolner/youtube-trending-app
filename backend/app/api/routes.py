@@ -656,5 +656,149 @@ def us_search_channels():
         "results": data
     })
 
+# ----------------------------
+# US Monthly Tag Analytics
+# ----------------------------
+
+@api_bp.get("/us/tags/months")
+def us_tag_months():
+    with get_conn() as con:
+        rows = con.execute("""
+            SELECT CAST(month AS VARCHAR) AS month
+            FROM us_month_totals
+            ORDER BY month DESC
+        """).fetchall()
+    return jsonify([r[0] for r in rows])
+
+
+@api_bp.get("/us/tags/top")
+def us_tags_top():
+    month = request.args.get("month")  # YYYY-MM-01 (or YYYY-MM-01T..)
+    limit = int(request.args.get("limit", "50"))
+    limit = max(1, min(limit, 200))
+
+    with get_conn() as con:
+        if not month:
+            month = con.execute("""
+                SELECT CAST(max(month) AS VARCHAR)
+                FROM us_month_totals
+            """).fetchone()[0]
+
+        cur = con.execute("""
+            SELECT
+              tag,
+              distinct_videos,
+              total_videos,
+              video_share
+            FROM us_tag_monthly
+            WHERE month = CAST(? AS DATE)
+            ORDER BY distinct_videos DESC
+            LIMIT ?
+        """, [month, limit])
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({"month": month, "count": len(data), "results": data})
+
+
+@api_bp.get("/us/tags/rising")
+def us_tags_rising():
+    month = request.args.get("month")  # month we want movers for (compared to prev month)
+    limit = int(request.args.get("limit", "50"))
+    limit = max(1, min(limit, 200))
+
+    with get_conn() as con:
+        if not month:
+            month = con.execute("""
+                SELECT CAST(max(month) AS VARCHAR)
+                FROM us_month_totals
+            """).fetchone()[0]
+
+        cur = con.execute("""
+            SELECT
+              tag,
+              share_now,
+              share_prev,
+              delta,
+              lift
+            FROM us_tag_movers_monthly
+            WHERE month = CAST(? AS DATE)
+              AND share_prev IS NOT NULL
+            ORDER BY delta DESC
+            LIMIT ?
+        """, [month, limit])
+
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({"month": month, "count": len(data), "results": data})
+
+@api_bp.get("/us/tags/videos")
+def us_tag_videos():
+    tag = request.args.get("tag")
+    if not tag:
+        return jsonify({"error": "Missing required query param: tag"}), 400
+
+    month = request.args.get("month")  # YYYY-MM-01
+    metric = request.args.get("metric", "views")  # views | likes
+    limit = int(request.args.get("limit", "20"))
+    limit = max(1, min(limit, 200))
+
+    if metric not in ("views", "likes"):
+        return jsonify({"error": "metric must be views or likes"}), 400
+
+    order_col = "max_views" if metric == "views" else "max_likes"
+
+    with get_conn() as con:
+        if not month:
+            month = con.execute("""
+                SELECT CAST(max(month) AS VARCHAR)
+                FROM us_month_totals
+            """).fetchone()[0]
+
+        # Unique videos that have this tag in this month
+        sql = f"""
+        WITH vids AS (
+          SELECT DISTINCT video_id
+          FROM us_tag_events
+          WHERE month = CAST(? AS DATE)
+            AND tag = ?
+        )
+        SELECT
+          t.video_id,
+          d.video_title,
+          d.channel_id,
+          d.channel_title,
+          d.video_default_thumbnail,
+          max(t.video_view_count) AS max_views,
+          max(t.video_like_count) AS max_likes,
+          max(t.video_comment_count) AS max_comments,
+          count(DISTINCT t.video_trending_date) AS days_trended_in_month,
+          CAST(min(t.video_trending_date) AS VARCHAR) AS first_date,
+          CAST(max(t.video_trending_date) AS VARCHAR) AS last_date
+        FROM trending t
+        JOIN video_dim d USING (video_id)
+        JOIN vids v USING (video_id)
+        WHERE t.video_trending_country = 'United States'
+          AND date_trunc('month', t.video_trending_date) = CAST(? AS DATE)
+        GROUP BY 1,2,3,4,5
+        ORDER BY {order_col} DESC NULLS LAST
+        LIMIT ?
+        """
+
+        cur = con.execute(sql, [month, tag, month, limit])
+        cols = [c[0] for c in cur.description]
+        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    return jsonify({
+        "country": "United States",
+        "month": month,
+        "tag": tag,
+        "metric": metric,
+        "count": len(data),
+        "results": data
+    })
+
 
 
