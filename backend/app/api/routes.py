@@ -1,14 +1,77 @@
 from __future__ import annotations
 
+import re
 from flask import Blueprint, request, jsonify
 from app.db.duckdb_client import get_conn
 
 api_bp = Blueprint("api", __name__)
 
 
+# -------------------------
+# Helpers
+# -------------------------
 def _rows_to_dicts(cur):
     cols = [c[0] for c in cur.description]
     return [dict(zip(cols, row)) for row in cur.fetchall()]
+
+
+def _normalize_month_str(m: str | None) -> str | None:
+    """Accept 'YYYY-MM-01' or ISO datetime; return 'YYYY-MM-01'."""
+    if not m:
+        return None
+    m = m.strip()
+    if len(m) >= 10:
+        m = m[:10]
+    return m
+
+
+def _normalize_tag_str(tag: str) -> str:
+    """Match cleaning rules: lowercase, trim, collapse spaces, strip leading # and quotes."""
+    t = tag.strip().lower()
+    t = re.sub(r"^#+", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    t = t.strip('"').strip("'")
+    return t
+
+
+def _table_exists(con, table_name: str) -> bool:
+    row = con.execute(
+        """
+        SELECT 1
+        FROM information_schema.tables
+        WHERE lower(table_name) = lower(?)
+        LIMIT 1
+        """,
+        [table_name],
+    ).fetchone()
+    return row is not None
+
+
+def _resolve_us_date(con, date: str | None) -> str:
+    if date:
+        return date
+    latest = con.execute(
+        """
+        SELECT CAST(max(video_trending_date) AS VARCHAR)
+        FROM trending
+        WHERE video_trending_country='United States'
+        """
+    ).fetchone()[0]
+    return latest
+
+
+def _resolve_month_clean(con, month: str | None) -> str | None:
+    month = _normalize_month_str(month)
+    if month:
+        return month
+    latest = con.execute(
+        """
+        SELECT CAST(month AS VARCHAR) AS month
+        FROM v_us_tag_months_clean
+        LIMIT 1
+        """
+    ).fetchone()
+    return latest[0] if latest else None
 
 
 # -------------------------
@@ -37,7 +100,6 @@ def trending():
     if not country:
         return jsonify({"error": "Missing required query param: country"}), 400
 
-    # limit
     limit_raw = request.args.get("limit", "50")
     try:
         limit = max(1, min(int(limit_raw), 200))
@@ -47,7 +109,6 @@ def trending():
     date = request.args.get("date")  # optional YYYY-MM-DD
 
     with get_conn() as con:
-        # default date = latest for that country
         if not date:
             date = con.execute(
                 """
@@ -85,9 +146,7 @@ def trending():
 
         rows = _rows_to_dicts(cur)
 
-    return jsonify(
-        {"country": country, "date": date, "limit": limit, "count": len(rows), "results": rows}
-    )
+    return jsonify({"country": country, "date": date, "limit": limit, "count": len(rows), "results": rows})
 
 
 # -------------------------
@@ -103,26 +162,11 @@ def us_dates():
             LIMIT 4000
             """
         ).fetchall()
-    # v_us_dates is DESC, so first should be latest
     return jsonify([r[0] for r in rows])
-
-
-def _resolve_us_date(con, date: str | None) -> str:
-    if date:
-        return date
-    latest = con.execute(
-        """
-        SELECT CAST(max(video_trending_date) AS VARCHAR)
-        FROM trending
-        WHERE video_trending_country='United States'
-        """
-    ).fetchone()[0]
-    return latest
 
 
 @api_bp.get("/us/trending")
 def us_trending():
-    # limit
     limit_raw = request.args.get("limit", "200")
     try:
         limit = max(1, min(int(limit_raw), 200))
@@ -278,7 +322,7 @@ def us_top_advanced():
 
 
 # -------------------------
-# Video detail API (Phase 2.4)
+# Video detail API
 # -------------------------
 @api_bp.get("/video/<video_id>")
 def video_detail(video_id: str):
@@ -347,6 +391,10 @@ def video_detail(video_id: str):
 
     return jsonify({"video": meta_dict, "country": country, "history": history, "country_spread_top20": spread})
 
+
+# -------------------------
+# Channels
+# -------------------------
 @api_bp.get("/us/channels/daily")
 def us_channels_daily():
     date = request.args.get("date")
@@ -357,15 +405,17 @@ def us_channels_daily():
         return jsonify({"error": "limit must be an integer"}), 400
 
     with get_conn() as con:
-        # default date = latest
         if not date:
-            date = con.execute("""
+            date = con.execute(
+                """
                 SELECT CAST(max(video_trending_date) AS VARCHAR)
                 FROM trending
                 WHERE video_trending_country='United States'
-            """).fetchone()[0]
+                """
+            ).fetchone()[0]
 
-        cur = con.execute("""
+        cur = con.execute(
+            """
             SELECT
               d.channel_id,
               c.channel_title,
@@ -381,10 +431,11 @@ def us_channels_daily():
             ORDER BY d.distinct_videos DESC NULLS LAST,
                      d.sum_views DESC NULLS LAST
             LIMIT ?
-        """, [date, limit])
+            """,
+            [date, limit],
+        )
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
     return jsonify({"country": "United States", "date": date, "count": len(data), "results": data})
 
@@ -398,7 +449,8 @@ def us_channels_alltime():
         return jsonify({"error": "limit must be an integer"}), 400
 
     with get_conn() as con:
-        cur = con.execute("""
+        cur = con.execute(
+            """
             SELECT
               a.channel_id,
               c.channel_title,
@@ -414,12 +466,14 @@ def us_channels_alltime():
             ORDER BY a.distinct_videos_alltime DESC NULLS LAST,
                      a.days_active DESC NULLS LAST
             LIMIT ?
-        """, [limit])
+            """,
+            [limit],
+        )
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
     return jsonify({"country": "United States", "count": len(data), "results": data})
+
 
 @api_bp.get("/us/channel/<channel_id>")
 def us_channel_detail(channel_id: str):
@@ -430,8 +484,8 @@ def us_channel_detail(channel_id: str):
         return jsonify({"error": "limit must be an integer"}), 400
 
     with get_conn() as con:
-        # Channel summary
-        meta_cur = con.execute("""
+        meta_cur = con.execute(
+            """
             SELECT
               c.channel_id,
               c.channel_title,
@@ -447,8 +501,9 @@ def us_channel_detail(channel_id: str):
             FROM channel_dim c
             LEFT JOIN channel_us_alltime a USING (channel_id)
             WHERE c.channel_id = ?
-        """, [channel_id])
-
+            """,
+            [channel_id],
+        )
         meta = meta_cur.fetchone()
         if not meta:
             return jsonify({"error": "channel_id not found"}), 404
@@ -456,8 +511,8 @@ def us_channel_detail(channel_id: str):
         meta_cols = [c[0] for c in meta_cur.description]
         channel = dict(zip(meta_cols, meta))
 
-        # Unique videos (US) for this channel
-        cur = con.execute("""
+        cur = con.execute(
+            """
             WITH vids AS (
               SELECT
                 t.video_id,
@@ -489,14 +544,18 @@ def us_channel_detail(channel_id: str):
             ORDER BY v.days_trended_us DESC NULLS LAST,
                      v.max_views DESC NULLS LAST
             LIMIT ?
-        """, [channel_id, limit])
+            """,
+            [channel_id, limit],
+        )
 
-        cols = [c[0] for c in cur.description]
-        videos = [dict(zip(cols, row)) for row in cur.fetchall()]
+        videos = _rows_to_dicts(cur)
 
     return jsonify({"channel": channel, "count": len(videos), "videos": videos})
 
-# --- US Search: videos + channels ---
+
+# -------------------------
+# US Search: videos + channels
+# -------------------------
 @api_bp.get("/us/search/videos")
 def us_search_videos():
     qtext = (request.args.get("q") or "").strip()
@@ -505,10 +564,10 @@ def us_search_videos():
 
     scope = (request.args.get("scope") or "day").lower()  # day | all
     date = request.args.get("date")
-    limit = request.args.get("limit", "20")
+    limit_raw = request.args.get("limit", "20")
 
     try:
-        limit = max(1, min(int(limit), 50))
+        limit = max(1, min(int(limit_raw), 50))
     except ValueError:
         return jsonify({"error": "limit must be an integer"}), 400
 
@@ -564,17 +623,9 @@ def us_search_videos():
         else:
             return jsonify({"error": "scope must be day or all"}), 400
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
-    return jsonify({
-        "q": qtext,
-        "scope": scope,
-        "date": date,
-        "limit": limit,
-        "count": len(data),
-        "results": data
-    })
+    return jsonify({"q": qtext, "scope": scope, "date": date, "limit": limit, "count": len(data), "results": data})
 
 
 @api_bp.get("/us/search/channels")
@@ -585,10 +636,10 @@ def us_search_channels():
 
     scope = (request.args.get("scope") or "day").lower()  # day | all
     date = request.args.get("date")
-    limit = request.args.get("limit", "20")
+    limit_raw = request.args.get("limit", "20")
 
     try:
-        limit = max(1, min(int(limit), 50))
+        limit = max(1, min(int(limit_raw), 50))
     except ValueError:
         return jsonify({"error": "limit must be an integer"}), 400
 
@@ -644,106 +695,178 @@ def us_search_channels():
         else:
             return jsonify({"error": "scope must be day or all"}), 400
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
-    return jsonify({
-        "q": qtext,
-        "scope": scope,
-        "date": date,
-        "limit": limit,
-        "count": len(data),
-        "results": data
-    })
+    return jsonify({"q": qtext, "scope": scope, "date": date, "limit": limit, "count": len(data), "results": data})
+
 
 # ----------------------------
-# US Monthly Tag Analytics
+# US Monthly Tag Analytics (CLEANED)
+# Tables / views created by: backend/scripts/create_tag_clean_analytics.py
+# - us_tag_events_clean
+# - us_tag_monthly_clean
+# - v_us_tag_months_clean
 # ----------------------------
-
 @api_bp.get("/us/tags/months")
 def us_tag_months():
     with get_conn() as con:
-        rows = con.execute("""
+        rows = con.execute(
+            """
             SELECT CAST(month AS VARCHAR) AS month
-            FROM us_month_totals
+            FROM v_us_tag_months_clean
             ORDER BY month DESC
-        """).fetchall()
+            """
+        ).fetchall()
     return jsonify([r[0] for r in rows])
 
 
 @api_bp.get("/us/tags/top")
 def us_tags_top():
-    month = request.args.get("month")  # YYYY-MM-01 (or YYYY-MM-01T..)
-    limit = int(request.args.get("limit", "50"))
-    limit = max(1, min(limit, 200))
+    month = request.args.get("month")  # YYYY-MM-01
+    limit_raw = request.args.get("limit", "50")
+    try:
+        limit = max(1, min(int(limit_raw), 200))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
 
     with get_conn() as con:
+        month = _resolve_month_clean(con, month)
         if not month:
-            month = con.execute("""
-                SELECT CAST(max(month) AS VARCHAR)
-                FROM us_month_totals
-            """).fetchone()[0]
+            return jsonify({"error": "No months available"}), 404
 
-        cur = con.execute("""
+        cur = con.execute(
+            """
             SELECT
               tag,
               distinct_videos,
-              total_videos,
+              total_videos_tagged AS total_videos,
               video_share
-            FROM us_tag_monthly
+            FROM us_tag_monthly_clean
             WHERE month = CAST(? AS DATE)
-            ORDER BY distinct_videos DESC
+            ORDER BY video_share DESC
             LIMIT ?
-        """, [month, limit])
+            """,
+            [month, limit],
+        )
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
     return jsonify({"month": month, "count": len(data), "results": data})
 
 
 @api_bp.get("/us/tags/rising")
 def us_tags_rising():
-    month = request.args.get("month")  # month we want movers for (compared to prev month)
-    limit = int(request.args.get("limit", "50"))
-    limit = max(1, min(limit, 200))
+    month = request.args.get("month")
+    limit_raw = request.args.get("limit", "50")
+    try:
+        limit = max(1, min(int(limit_raw), 200))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
 
     with get_conn() as con:
+        month = _resolve_month_clean(con, month)
         if not month:
-            month = con.execute("""
-                SELECT CAST(max(month) AS VARCHAR)
-                FROM us_month_totals
-            """).fetchone()[0]
+            return jsonify({"error": "No months available"}), 404
 
-        cur = con.execute("""
+        cur = con.execute(
+            """
+            WITH now AS (
+              SELECT tag, video_share AS share_now
+              FROM us_tag_monthly_clean
+              WHERE month = CAST(? AS DATE)
+            ),
+            prev AS (
+              SELECT tag, video_share AS share_prev
+              FROM us_tag_monthly_clean
+              WHERE month = date_add(CAST(? AS DATE), INTERVAL '-1 month')
+            )
             SELECT
-              tag,
-              share_now,
-              share_prev,
-              delta,
-              lift
-            FROM us_tag_movers_monthly
-            WHERE month = CAST(? AS DATE)
-              AND share_prev IS NOT NULL
+              n.tag,
+              p.share_prev,
+              n.share_now,
+              (n.share_now - coalesce(p.share_prev, 0)) AS delta,
+              CASE
+                WHEN p.share_prev IS NULL OR p.share_prev = 0 THEN NULL
+                ELSE n.share_now / p.share_prev
+              END AS lift
+            FROM now n
+            LEFT JOIN prev p USING (tag)
             ORDER BY delta DESC
             LIMIT ?
-        """, [month, limit])
+            """,
+            [month, month, limit],
+        )
 
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
     return jsonify({"month": month, "count": len(data), "results": data})
 
+
+@api_bp.get("/us/tags/falling")
+def us_tags_falling():
+    month = request.args.get("month")
+    limit_raw = request.args.get("limit", "50")
+    try:
+        limit = max(1, min(int(limit_raw), 200))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+
+    with get_conn() as con:
+        month = _resolve_month_clean(con, month)
+        if not month:
+            return jsonify({"error": "No months available"}), 404
+
+        cur = con.execute(
+            """
+            WITH now AS (
+              SELECT tag, video_share AS share_now
+              FROM us_tag_monthly_clean
+              WHERE month = CAST(? AS DATE)
+            ),
+            prev AS (
+              SELECT tag, video_share AS share_prev
+              FROM us_tag_monthly_clean
+              WHERE month = date_add(CAST(? AS DATE), INTERVAL '-1 month')
+            )
+            SELECT
+              n.tag,
+              p.share_prev,
+              n.share_now,
+              (n.share_now - coalesce(p.share_prev, 0)) AS delta,
+              CASE
+                WHEN p.share_prev IS NULL OR p.share_prev = 0 THEN NULL
+                ELSE n.share_now / p.share_prev
+              END AS lift
+            FROM now n
+            LEFT JOIN prev p USING (tag)
+            WHERE p.share_prev IS NOT NULL
+            ORDER BY delta ASC
+            LIMIT ?
+            """,
+            [month, month, limit],
+        )
+
+        data = _rows_to_dicts(cur)
+
+    return jsonify({"month": month, "count": len(data), "results": data})
+
+
 @api_bp.get("/us/tags/videos")
 def us_tag_videos():
-    tag = request.args.get("tag")
-    if not tag:
+    tag_raw = request.args.get("tag")
+    if not tag_raw:
         return jsonify({"error": "Missing required query param: tag"}), 400
 
-    month = request.args.get("month")  # YYYY-MM-01
+    tag = _normalize_tag_str(tag_raw)
+
+    month = request.args.get("month")
     metric = request.args.get("metric", "views")  # views | likes
-    limit = int(request.args.get("limit", "20"))
-    limit = max(1, min(limit, 200))
+    limit_raw = request.args.get("limit", "20")
+
+    try:
+        limit = max(1, min(int(limit_raw), 200))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
 
     if metric not in ("views", "likes"):
         return jsonify({"error": "metric must be views or likes"}), 400
@@ -751,17 +874,14 @@ def us_tag_videos():
     order_col = "max_views" if metric == "views" else "max_likes"
 
     with get_conn() as con:
+        month = _resolve_month_clean(con, month)
         if not month:
-            month = con.execute("""
-                SELECT CAST(max(month) AS VARCHAR)
-                FROM us_month_totals
-            """).fetchone()[0]
+            return jsonify({"error": "No months available"}), 404
 
-        # Unique videos that have this tag in this month
         sql = f"""
         WITH vids AS (
           SELECT DISTINCT video_id
-          FROM us_tag_events
+          FROM us_tag_events_clean
           WHERE month = CAST(? AS DATE)
             AND tag = ?
         )
@@ -788,17 +908,61 @@ def us_tag_videos():
         """
 
         cur = con.execute(sql, [month, tag, month, limit])
-        cols = [c[0] for c in cur.description]
-        data = [dict(zip(cols, r)) for r in cur.fetchall()]
+        data = _rows_to_dicts(cur)
 
-    return jsonify({
-        "country": "United States",
-        "month": month,
-        "tag": tag,
-        "metric": metric,
-        "count": len(data),
-        "results": data
-    })
+    return jsonify(
+        {
+            "country": "United States",
+            "month": month,
+            "tag": tag,
+            "metric": metric,
+            "count": len(data),
+            "results": data,
+        }
+    )
 
 
+@api_bp.get("/us/tags/series")
+def us_tags_series():
+    """
+    Return a time series (monthly) of a tag's share + counts in the US (cleaned tables).
+    NOTE: us_tag_monthly_clean has total_videos_tagged, not total_videos.
+    """
+    tag_raw = request.args.get("tag")
+    if not tag_raw:
+        return jsonify({"error": "Missing required query param: tag"}), 400
 
+    tag = _normalize_tag_str(tag_raw)
+
+    with get_conn() as con:
+        # Prefer cleaned table if it exists; fall back to original
+        table = "us_tag_monthly_clean" if _table_exists(con, "us_tag_monthly_clean") else "us_tag_monthly"
+
+        if table == "us_tag_monthly_clean":
+            sql = """
+                SELECT
+                  CAST(month AS VARCHAR) AS month,
+                  video_share,
+                  distinct_videos,
+                  total_videos_tagged AS total_videos
+                FROM us_tag_monthly_clean
+                WHERE tag = ?
+                ORDER BY month ASC
+            """
+        else:
+            # original table naming
+            sql = """
+                SELECT
+                  CAST(month AS VARCHAR) AS month,
+                  video_share,
+                  distinct_videos,
+                  total_videos
+                FROM us_tag_monthly
+                WHERE tag = ?
+                ORDER BY month ASC
+            """
+
+        cur = con.execute(sql, [tag])
+        series = _rows_to_dicts(cur)
+
+    return jsonify({"tag": tag, "count": len(series), "series": series})

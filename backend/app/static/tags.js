@@ -1,3 +1,5 @@
+// backend/app/static/tags.js
+
 const statusEl = document.getElementById("status");
 const monthSelect = document.getElementById("monthSelect");
 const refreshBtn = document.getElementById("refreshBtn");
@@ -82,10 +84,39 @@ function renderRising(rows) {
   `;
 }
 
+function renderFalling(rows) {
+  const body = rows.map(r => `
+    <tr>
+      <td class="mono">${tagLinkHtml(r.tag)}</td>
+      <td>${fmtPctShare(r.share_prev)}</td>
+      <td>${fmtPctShare(r.share_now)}</td>
+      <td>${fmtPctShare(r.delta)}</td>
+      <td>${r.lift === null ? "" : Number(r.lift).toFixed(2) + "x"}</td>
+    </tr>
+  `).join("");
+
+  document.getElementById("fallingTags").innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Tag</th>
+          <th>Prev share</th>
+          <th>Now share</th>
+          <th>Δ share</th>
+          <th>Lift</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>
+  `;
+}
+
 async function loadMonths() {
   setStatus("Loading months...");
   const months = await fetchJson("/api/us/tags/months");
-  monthSelect.innerHTML = months.map(m => `<option value="${m}">${m.slice(0, 7)}</option>`).join("");
+  monthSelect.innerHTML = months
+    .map(m => `<option value="${m}">${m.slice(0, 7)}</option>`)
+    .join("");
   setStatus(`Loaded ${months.length} months.`);
   return months;
 }
@@ -93,13 +124,15 @@ async function loadMonths() {
 async function loadAll(month) {
   setStatus(`Loading tag analytics for ${month.slice(0, 7)}...`);
 
-  const [top, rising] = await Promise.all([
+  const [top, rising, falling] = await Promise.all([
     fetchJson(`/api/us/tags/top?month=${encodeURIComponent(month)}&limit=50`),
-    fetchJson(`/api/us/tags/rising?month=${encodeURIComponent(month)}&limit=50`)
+    fetchJson(`/api/us/tags/rising?month=${encodeURIComponent(month)}&limit=50`),
+    fetchJson(`/api/us/tags/falling?month=${encodeURIComponent(month)}&limit=50`),
   ]);
 
-  renderTop(top.results);
-  renderRising(rising.results);
+  renderTop(top.results || []);
+  renderRising(rising.results || []);
+  renderFalling(falling.results || []);
 
   setStatus("Done.");
 }
