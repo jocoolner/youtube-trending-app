@@ -31,12 +31,12 @@
     <section class="card full">
       <h2>Search (US)</h2>
 
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <div class="inline-controls">
         <input
           id="searchInput"
           type="text"
           placeholder="Search video title or channel title..."
-          style="min-width:280px;"
+          class="input-wide"
         />
 
         <select id="searchType">
@@ -52,8 +52,8 @@
         <button id="searchBtn">Search</button>
       </div>
 
-      <div id="searchStatus" class="small" style="margin-top:10px;"></div>
-      <div id="searchResults" class="table-wrap" style="margin-top:10px;"></div>
+      <div id="searchStatus" class="small spacer-top"></div>
+      <div id="searchResults" class="table-wrap spacer-top"></div>
     </section>
 
     <section class="card">

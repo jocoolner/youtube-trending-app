@@ -1,25 +1,28 @@
 # YouTube Trending App
 
-A small Flask + DuckDB app for exploring YouTube trending data, with a US-focused dashboard and video detail pages.
+Flask + DuckDB app for exploring YouTube trending data, with a US-first dashboard for videos, channels, and tags.
+
+## Highlights
+
+- Kaggle ingestion from `canerkonuk/youtube-trending-videos-global`
+- DuckDB build pipeline with data cleaning and validation
+- US analytics for top videos, channel leaderboards, stickiness, reach, and tags
+- Lightweight Flask API + browser UI
 
 ## Quick Start
 
-From the project root (`youtube-trending-app/`):
+From the project root:
 
 ```bash
 cd backend
 python -m venv .venv
 ```
 
-Activate the virtual environment:
-
-- Windows PowerShell
+Activate venv:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
-
-- macOS/Linux
 
 ```bash
 source .venv/bin/activate
@@ -38,34 +41,44 @@ PORT=5000
 DUCKDB_PATH=../data/processed/trending.duckdb
 ```
 
-Build data (first run only):
+Refresh data and analytics:
 
 ```bash
-python scripts/download_dataset.py
-python scripts/build_duckdb.py
-python scripts/create_analytics.py
+python scripts/refresh_data.py --force-download
 ```
 
-Run the app:
+Start app:
 
 ```bash
 python -m app.main
 ```
 
-Open in browser:
+Open:
 
-- Dashboard: `http://localhost:5000/`
-- Health: `http://localhost:5000/health`
+- `http://localhost:5000/` (dashboard)
+- `http://localhost:5000/channels`
+- `http://localhost:5000/tags`
+- `http://localhost:5000/health`
 
-## What the Project Includes
+## Data Refresh
 
-- Data download from Kaggle dataset `canerkonuk/youtube-trending-videos-global`
-- DuckDB build/clean pipeline for trending records
-- Analytics tables for:
-  - top videos by views/likes
-  - US stickiness (days trended in US)
-  - global reach (number of countries)
-- Flask API + simple web UI
+Run from `backend/`.
+
+1. `python scripts/refresh_data.py`
+2. `python scripts/refresh_data.py --force-download` for a guaranteed fresh Kaggle pull
+
+What it runs:
+
+1. `python scripts/download_dataset.py`
+2. `python scripts/build_duckdb.py`
+3. `python scripts/create_analytics.py`
+4. `python scripts/create_tag_clean_analytics.py`
+
+Important:
+
+- UI `Refresh` buttons only reload API results from local DuckDB.
+- They do not download new Kaggle data.
+- After refresh completes, restart Flask to ensure the updated DB is in use.
 
 ## Project Structure
 
@@ -82,6 +95,8 @@ youtube-trending-app/
       download_dataset.py
       build_duckdb.py
       create_analytics.py
+      create_tag_clean_analytics.py
+      refresh_data.py
       inspect_raw.py
     requirements.txt
   data/
@@ -91,43 +106,28 @@ youtube-trending-app/
   README.md
 ```
 
-## Data Pipeline
-
-Run these from `backend/`:
-
-1. `python scripts/download_dataset.py`
-   - Downloads Kaggle files and copies them into `data/raw/youtube_trending_global/`
-2. `python scripts/build_duckdb.py`
-   - Reads CSV and builds cleaned table `trending` in `data/processed/trending.duckdb`
-3. `python scripts/create_analytics.py`
-   - Creates analytics tables/views:
-     - `video_dim`
-     - `video_reach`
-     - `video_us_stickiness`
-     - `v_us_dates`
-
-Optional sanity check:
-
-```bash
-python scripts/inspect_raw.py
-```
-
 ## API Overview
 
-Base path: `/api`
+Base path: `/api`.
 
-US dashboard endpoints:
+US routes:
 
 - `GET /api/us/dates`
 - `GET /api/us/trending?date=YYYY-MM-DD&limit=200`
 - `GET /api/us/top?metric=views|likes&date=YYYY-MM-DD&limit=20`
 - `GET /api/us/top_advanced?metric=stickiness|reach&date=YYYY-MM-DD&limit=20`
+- `GET /api/us/channels/daily?date=YYYY-MM-DD&limit=20`
+- `GET /api/us/channels/alltime?limit=20`
+- `GET /api/us/tags/top?month=YYYY-MM-01&limit=50`
+- `GET /api/us/tags/rising?month=YYYY-MM-01&limit=50`
+- `GET /api/us/tags/falling?month=YYYY-MM-01&limit=50`
 
-Video detail endpoint:
+Detail routes:
 
 - `GET /api/video/<video_id>?country=United%20States`
+- `GET /api/us/channel/<channel_id>?limit=200`
 
-Generic endpoints:
+Generic routes:
 
 - `GET /api/countries`
 - `GET /api/trending?country=<name>&date=YYYY-MM-DD&limit=50`
@@ -136,9 +136,4 @@ Generic endpoints:
 
 - Python 3.10+
 - Kaggle credentials configured for `kagglehub`
-- Enough disk space for dataset + DuckDB (a few GB recommended)
-
-## Notes
-
-- `data/raw/` and `data/processed/` are gitignored by design.
-- Current UI is US-first, but generic API routes support other countries.
+- Enough disk space for raw CSV + DuckDB output
