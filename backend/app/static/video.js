@@ -2,9 +2,11 @@ const statusEl = document.getElementById("status");
 const metaEl = document.getElementById("videoMeta");
 const historyEl = document.getElementById("videoHistory");
 const spreadEl = document.getElementById("videoSpread");
+const historySummaryEl = document.getElementById("videoHistorySummary");
+const spreadSummaryEl = document.getElementById("videoSpreadSummary");
 
 function setStatus(msg) {
-  statusEl.textContent = msg;
+  if (statusEl) statusEl.textContent = msg;
 }
 
 function fmtNum(x) {
@@ -12,6 +14,20 @@ function fmtNum(x) {
   const n = Number(x);
   if (Number.isNaN(n)) return String(x);
   return n.toLocaleString();
+}
+
+function renderKpis(targetEl, items) {
+  if (!targetEl) return;
+  if (!items || !items.length) {
+    targetEl.innerHTML = "";
+    return;
+  }
+  targetEl.innerHTML = items.map((it) => `
+    <div class="kpi">
+      <div class="label">${it.label}</div>
+      <div class="value">${it.value}</div>
+    </div>
+  `).join("");
 }
 
 async function fetchJson(url) {
@@ -29,24 +45,17 @@ function renderMeta(v) {
   const ytChannelHref = `https://www.youtube.com/channel/${encodeURIComponent(v.channel_id)}`;
 
   metaEl.innerHTML = `
-    <div style="display:flex; gap:14px; align-items:flex-start;">
-      <img class="thumb" style="width:160px;height:90px;border-radius:12px;"
-           src="${v.video_default_thumbnail || ""}" alt="">
-      <div style="flex:1;">
+    <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">
+      <img class="thumb" style="width:160px;height:90px;border-radius:12px;" src="${v.video_default_thumbnail || ""}" alt="">
+      <div style="flex:1; min-width:280px;">
         <div class="title" style="font-size:18px;">${v.video_title || "(no title)"}</div>
+        <div class="meta" style="margin-top:6px;">Channel: <b>${v.channel_title || ""}</b></div>
+        <div class="meta">Category: ${v.video_category_id ?? ""} | Duration: ${v.video_duration ?? ""} | Definition: ${v.video_definition ?? ""}</div>
 
-        <div class="meta" style="margin-top:6px;">
-          Channel: <b>${v.channel_title || ""}</b>
-        </div>
-
-        <div class="meta">
-          Category ID: ${v.video_category_id ?? ""} · Duration: ${v.video_duration ?? ""} · Definition: ${v.video_definition ?? ""}
-        </div>
-
-        <div style="margin-top:10px; display:flex; gap:14px; flex-wrap:wrap;">
-          <div class="small">Global reach: <b>${fmtNum(v.countries_count)}</b> countries</div>
-          <div class="small">US stickiness: <b>${fmtNum(v.days_trended_us)}</b> days</div>
-          <div class="small">US first/last: <b>${v.first_trending_us || ""}</b> → <b>${v.last_trending_us || ""}</b></div>
+        <div class="kpi-row" style="margin-top:10px;">
+          <div class="kpi"><div class="label">Global reach</div><div class="value">${fmtNum(v.countries_count)} countries</div></div>
+          <div class="kpi"><div class="label">US stickiness</div><div class="value">${fmtNum(v.days_trended_us)} days</div></div>
+          <div class="kpi"><div class="label">US first to last</div><div class="value">${v.first_trending_us || ""} to ${v.last_trending_us || ""}</div></div>
         </div>
 
         <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
@@ -60,12 +69,13 @@ function renderMeta(v) {
 }
 
 function renderHistory(rows) {
-  if (!rows.length) {
+  if (!rows || !rows.length) {
     historyEl.innerHTML = `<div class="small" style="padding:10px;">No US history found for this video.</div>`;
+    renderKpis(historySummaryEl, []);
     return;
   }
 
-  const body = rows.map(r => `
+  const body = rows.map((r) => `
     <tr>
       <td>${r.date}</td>
       <td>${fmtNum(r.video_view_count)}</td>
@@ -87,15 +97,24 @@ function renderHistory(rows) {
       <tbody>${body}</tbody>
     </table>
   `;
+
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  renderKpis(historySummaryEl, [
+    { label: "US trending days", value: fmtNum(rows.length) },
+    { label: "US range", value: `${first.date || ""} to ${last.date || ""}` },
+    { label: "Latest views", value: fmtNum(last.video_view_count) },
+  ]);
 }
 
 function renderSpread(rows) {
-  if (!rows.length) {
+  if (!rows || !rows.length) {
     spreadEl.innerHTML = `<div class="small" style="padding:10px;">No country spread data.</div>`;
+    renderKpis(spreadSummaryEl, []);
     return;
   }
 
-  const body = rows.map(r => `
+  const body = rows.map((r) => `
     <tr>
       <td>${r.country}</td>
       <td>${fmtNum(r.days)}</td>
@@ -113,9 +132,16 @@ function renderSpread(rows) {
       <tbody>${body}</tbody>
     </table>
     <div class="small" style="padding:8px 10px;">
-      Countries where this video appeared on the trending list the most days.
+      Countries where this video appeared on trending the most days.
     </div>
   `;
+
+  const top = rows[0];
+  renderKpis(spreadSummaryEl, [
+    { label: "Countries shown", value: fmtNum(rows.length) },
+    { label: "Top country", value: top.country || "-" },
+    { label: "Top country days", value: fmtNum(top.days) },
+  ]);
 }
 
 async function init() {
@@ -123,16 +149,14 @@ async function init() {
   try {
     setStatus("Loading video details...");
     const data = await fetchJson(`/api/video/${encodeURIComponent(videoId)}?country=United%20States`);
-
     renderMeta(data.video);
     renderHistory(data.history);
     renderSpread(data.country_spread_top20);
-
     setStatus("Done.");
   } catch (err) {
     console.error(err);
     setStatus(`Error: ${err.message}`);
-    metaEl.innerHTML = `<div class="small">Failed to load video details.</div>`;
+    if (metaEl) metaEl.innerHTML = `<div class="small">Failed to load video details.</div>`;
   }
 }
 

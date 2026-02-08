@@ -10,11 +10,12 @@
   <header class="header">
     <div>
       <h1>Channel Leaderboard (US)</h1>
-      <p class="sub">Daily: channels with the most distinct trending videos that day. All-time: most distinct trending videos in US so far.</p>
+      <p class="sub">Daily tracks channels by distinct trending videos. All-time tracks sustained US presence.</p>
     </div>
 
     <div class="controls">
       <a class="btn" href="/">Home</a>
+      <a class="btn" href="/tags">Tags</a>
       <label for="dateSelect">Date</label>
       <select id="dateSelect"></select>
       <button id="refreshBtn">Refresh</button>
@@ -22,13 +23,20 @@
   </header>
 
   <main class="grid">
+    <section class="card full">
+      <h2>Overview</h2>
+      <div id="channelsOverview" class="kpi-row"></div>
+    </section>
+
     <section class="card">
-      <h2>Daily — Top Channels (by distinct videos)</h2>
+      <h2>Daily - Top Channels (by distinct videos)</h2>
+      <div id="dailySummary" class="kpi-row"></div>
       <div id="dailyTable" class="table-wrap"></div>
     </section>
 
     <section class="card">
-      <h2>All-time — Top Channels (by distinct videos)</h2>
+      <h2>All-time - Top Channels (by distinct videos)</h2>
+      <div id="alltimeSummary" class="kpi-row"></div>
       <div id="alltimeTable" class="table-wrap"></div>
     </section>
   </main>
@@ -37,7 +45,6 @@
     <span id="status"></span>
   </footer>
 
-  <!-- IMPORTANT: leaderboard page uses channels.js (plural) -->
   <script src="{{ url_for('static', filename='channels.js') }}"></script>
 </body>
 </html>

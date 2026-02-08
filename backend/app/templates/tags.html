@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>YouTube Trending (US) — Tags</title>
+  <title>YouTube Trending (US) - Tags</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
   <header class="header">
     <div>
       <h1>Tags (US)</h1>
-      <p class="sub">Explore top tags and what’s rising month-over-month.</p>
+      <p class="sub">Explore top tags and what is rising month-over-month.</p>
     </div>
 
     <div class="controls">
@@ -26,18 +26,21 @@
   <main class="grid">
     <section class="card">
       <h2>Top Tags (by distinct videos)</h2>
+      <div id="topSummary" class="kpi-row"></div>
       <div id="topTags" class="table-wrap"></div>
     </section>
 
     <section class="card">
       <h2>Rising Tags (month-over-month)</h2>
+      <div id="risingSummary" class="kpi-row"></div>
       <div id="risingTags" class="table-wrap"></div>
       <div class="small" style="padding: 8px 10px;">
         Rising = biggest increase in <b>video share</b> vs previous month.
       </div>
     </section>
     <section class="card">
-      <h2>Falling tags (month-over-month)</h2>
+      <h2>Falling Tags (month-over-month)</h2>
+      <div id="fallingSummary" class="kpi-row"></div>
       <div id="fallingTags" class="table-wrap"></div>
     </section>
     

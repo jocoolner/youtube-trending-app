@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Video — {{ video_id }}</title>
+  <title>Video - {{ video_id }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -13,7 +13,8 @@
       <p class="sub">Video ID: <code id="videoId">{{ video_id }}</code></p>
     </div>
     <div class="controls">
-      <a class="btn" href="/">← Back</a>
+      <a class="btn" href="/">Back to dashboard</a>
+      <a class="btn" href="/channels">Channels</a>
     </div>
   </header>
 
@@ -24,11 +25,13 @@
 
     <section class="card">
       <h2>US Trend History</h2>
+      <div id="videoHistorySummary" class="kpi-row"></div>
       <div id="videoHistory" class="table-wrap"></div>
     </section>
 
     <section class="card">
       <h2>Country Spread (Top 20)</h2>
+      <div id="videoSpreadSummary" class="kpi-row"></div>
       <div id="videoSpread" class="table-wrap"></div>
     </section>
   </main>
@@ -38,7 +41,6 @@
   </footer>
 
   <script>
-    // Pass video_id to JS safely
     window.__VIDEO_ID__ = "{{ video_id }}";
   </script>
   <script src="{{ url_for('static', filename='video.js') }}"></script>

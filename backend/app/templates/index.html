@@ -10,7 +10,7 @@
   <header class="header">
     <div>
       <h1>YouTube Trending (US)</h1>
-      <p class="sub">Pick a date to explore daily trending + top-20 leaderboards.</p>
+      <p class="sub">Pick a date to explore daily trending and leaderboard movement.</p>
     </div>
 
     <div class="controls">
@@ -23,8 +23,11 @@
   </header>
 
   <main class="grid">
+    <section class="card full">
+      <h2>Overview</h2>
+      <div id="overviewKpis" class="kpi-row"></div>
+    </section>
 
-    <!-- 🔎 Search (US) -->
     <section class="card full">
       <h2>Search (US)</h2>
 
@@ -53,29 +56,28 @@
       <div id="searchResults" class="table-wrap" style="margin-top:10px;"></div>
     </section>
 
-    <!-- Existing dashboard cards -->
     <section class="card">
-      <h2>Top 20 — Views</h2>
+      <h2>Top 20 - Views</h2>
       <div id="topViews" class="table-wrap"></div>
     </section>
 
     <section class="card">
-      <h2>Top 20 — Likes</h2>
+      <h2>Top 20 - Likes</h2>
       <div id="topLikes" class="table-wrap"></div>
     </section>
 
     <section class="card">
-      <h2>Top 20 — Stickiness (days trended in US)</h2>
+      <h2>Top 20 - Stickiness (days trended in US)</h2>
       <div id="topStickiness" class="table-wrap"></div>
     </section>
 
     <section class="card">
-      <h2>Top 20 — Global Reach (countries)</h2>
+      <h2>Top 20 - Global Reach (countries)</h2>
       <div id="topReach" class="table-wrap"></div>
     </section>
 
     <section class="card full">
-      <h2>US Trending — Top 200 (by views)</h2>
+      <h2>US Trending - Top 200 (by views)</h2>
       <div id="trending200" class="table-wrap"></div>
     </section>
   </main>

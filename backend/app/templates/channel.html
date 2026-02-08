@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Channel — {{ channel_id }}</title>
+  <title>Channel - {{ channel_id }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
@@ -16,6 +16,7 @@
     <div class="controls">
       <a class="btn" href="/">Home</a>
       <a class="btn" href="/channels">Channels</a>
+      <a class="btn" href="/tags">Tags</a>
     </div>
   </header>
 
@@ -26,6 +27,7 @@
 
     <section class="card full">
       <h2>Unique US Trending Videos (all-time)</h2>
+      <div id="channelVideosSummary" class="kpi-row"></div>
       <div id="channelVideos" class="table-wrap"></div>
     </section>
   </main>
@@ -37,8 +39,6 @@
   <script>
     window.__CHANNEL_ID__ = "{{ channel_id }}";
   </script>
-
-  <!-- IMPORTANT: detail page uses channel.js (singular) -->
   <script src="{{ url_for('static', filename='channel.js') }}"></script>
 </body>
 </html>
